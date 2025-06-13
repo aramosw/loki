@@ -108,7 +108,7 @@ def geometric_brownian_motion(
     mu: float,
     sigma: float,
     x0: float,
-    seed: Optional[int] = None
+    seed: Optional[int] = 42
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Simulate a Geometric Brownian Motion (GBM) over [0, T].
@@ -139,3 +139,56 @@ def geometric_brownian_motion(
         X[i] = X[i-1] * np.exp((mu - 0.5 * sigma**2) * dt + sigma * dW)
 
     return t, X
+
+
+def heston_model(
+    T: float,
+    N: int,
+    mu: float,
+    kappa: float,
+    theta: float,
+    sigma: float,
+    rho: float,
+    x0: float,
+    v0: float,
+    seed: Optional[int] = 42
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Simulate the Heston model for stochastic volatility.
+
+    Args:
+        T (float): Total time horizon.
+        N (int): Number of time points (including t=0).
+        mu (float): Drift of the asset price.
+        kappa (float): Speed of mean reversion for volatility.
+        theta (float): Long-term mean of volatility.
+        sigma (float): Volatility of volatility.
+        rho (float): Correlation between asset and volatility processes.
+        x0 (float): Initial asset price.
+        v0 (float): Initial variance.
+        seed (Optional[int]): Seed for random number generation.
+
+    Returns:
+        t (np.ndarray): Time grid, shape (N,).
+        X (np.ndarray): Simulated asset prices, shape (N,).
+    """
+    rng = np.random.default_rng(seed)
+    dt = T / (N - 1)
+    t = np.linspace(0.0, T, N)
+
+    X = np.empty(N)
+    V = np.empty(N)
+    X[0] = x0
+    V[0] = v0
+
+    for i in range(1, N):
+        dW1 = rng.standard_normal() * np.sqrt(dt)  # Asset process
+        dW2 = rho * dW1 + np.sqrt(1 - rho**2) * rng.standard_normal() * np.sqrt(dt)  # Volatility process
+
+        # Update variance using Euler-Maruyama
+        V[i] = max(V[i-1] + kappa * (theta - V[i-1]) * dt + sigma * np.sqrt(V[i-1]) * dW2, 0)
+
+        # Update asset price using the Heston model formula
+        X[i] = X[i-1] * np.exp((mu - 0.5 * V[i-1]) * dt + np.sqrt(V[i-1]) * dW1)
+
+    return t, X, V
