@@ -17,6 +17,7 @@ class BlackScholes:
             T (float): Time to expiration in years.
             r (float): Risk-free interest rate (annualised).
             sigma (float): Volatility of the underlying asset (annualised).
+            method (str): Pricing method to use ('analytical', 'monte_carlo', 'finite_difference').
         """
         self.S = S
         self.K = K
@@ -49,18 +50,19 @@ class BlackScholes:
         return price
 
 
-    def monte_carlo_price(self, option_type: str = "call", N: int = 10000) -> float:
+    def monte_carlo_price(self, option_type: str = "call", N: int = 2, M: int = 10000) -> float:
         """
         Calculate the option price using Monte Carlo simulation.
 
         Args:
             option_type (str): 'call' for call option, 'put' for put option.
             N (int): Number of Monte Carlo simulations.
+            M (int): Number of paths to simulate.
 
         Returns:
             float: The calculated option price.
         """
-        end_prices = geometric_brownian_motion(T=self.T, N=N, mu=self.r, sigma=self.sigma, x0=self.S)[1][-1]
+        end_prices = geometric_brownian_motion(T=self.T, N=N, mu=self.r, sigma=self.sigma, x0=self.S, M=M)[1][:, -1].flatten()
 
         if option_type == "call":
             payoffs = np.maximum(0, end_prices - self.K)
@@ -183,7 +185,8 @@ class BlackScholes:
     def price(
         self,
         option_type: str = "call",
-        mc_N: int = 100000,
+        mc_N: int = 2,
+        mc_M: int = 1000,
         fd_M: int = 100,
         fd_N: int = 100,
         S_max_factor: float = 2.0
@@ -204,7 +207,7 @@ class BlackScholes:
         if self.method == "analytical":
             return self.analytical_price(option_type)
         elif self.method in ("monte_carlo", "mc"):
-            return self.monte_carlo_price(option_type, N=mc_N)
+            return self.monte_carlo_price(option_type, N=mc_N, M=mc_M)
         elif self.method in ("finite_difference", "fd"):
             return self.finite_difference_price(option_type, M=fd_M, N=fd_N, S_max_factor=S_max_factor)
         else:
