@@ -3,9 +3,9 @@ import numpy as np
 
 class BinomialTree:
     """
-    Binomial Tree model for option pricing.
+    Binomial Tree model for European option pricing.
     """
-    def __init__(self, S: float, K: float, T: float, r: float, steps: int, option_type: str = "call", american: bool = False):
+    def __init__(self, S: float, K: float, T: float, r: float, steps: int, option_type: str = "call"):
         """
         Initialise the Binomial Tree model.
 
@@ -16,7 +16,6 @@ class BinomialTree:
             r (float): Risk-free interest rate (annualised).
             steps (int): Number of time steps in the binomial tree.
             option_type (str): 'call' for call option, 'put' for put option.
-            american (bool): True for American option, False for European option.
         """
         self.S = S
         self.K = K
@@ -24,12 +23,11 @@ class BinomialTree:
         self.r = r
         self.steps = steps
         self.option_type = option_type
-        self.american = american
         self.dt = T / steps
-        self.discount = np.exp(-r * self.dt)  
+        self.discount = np.exp(-r * self.dt)
     
-
-    def calculate_price(self, u: float, d: float, q: float) -> float:
+    
+    def price(self, u: float, d: float, q: float) -> float:
         """
         Calculate the option price using the Binomial Tree method.
 
@@ -57,12 +55,5 @@ class BinomialTree:
         for step in range(self.steps - 1, -1, -1):
             for i in range(step + 1):
                 option_values[i] = (q * option_values[i] + (1 - q) * option_values[i + 1]) * self.discount
-
-                # Check for early exercise if American option
-                if self.american:
-                    if self.option_type == "call":
-                        option_values[i] = max(option_values[i], asset_prices[i] - self.K)
-                    elif self.option_type == "put":
-                        option_values[i] = max(option_values[i], self.K - asset_prices[i])
 
         return option_values[0]
