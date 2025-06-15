@@ -84,7 +84,7 @@ class JumpDiffusion:
         return price
 
     
-    def monte_carlo_price(self, option_type: str = "call", N: int = 1, M: int = 10000) -> float:
+    def monte_carlo_price(self, option_type: str = "call", N: int = 2, M: int = 10000) -> float:
         """
         Calculate the option price using Monte Carlo simulation.
 

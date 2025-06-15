@@ -148,7 +148,7 @@ def geometric_brownian_motion(
     return t, X
 
 
-def heston_model(
+def heston_process(
     T: float,
     N: int,
     mu: float,
@@ -158,44 +158,62 @@ def heston_model(
     rho: float,
     x0: float,
     v0: float,
+    M: int,
     seed: Optional[int] = 42
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Simulate the Heston model for stochastic volatility.
+    Vectorised simulation of M paths of the Heston stochastic volatility model over [0, T].
+
+    dS_t = mu * S_t * dt + sqrt(v_t) * S_t * dW1_t
+    dv_t = kappa * (theta - v_t) * dt + sigma * sqrt(v_t) * dW2_t
+    Corr(dW1, dW2) = rho
 
     Args:
         T (float): Total time horizon.
         N (int): Number of time points (including t=0).
         mu (float): Drift of the asset price.
-        kappa (float): Speed of mean reversion for volatility.
-        theta (float): Long-term mean of volatility.
-        sigma (float): Volatility of volatility.
-        rho (float): Correlation between asset and volatility processes.
+        kappa (float): Speed of mean reversion for variance.
+        theta (float): Long-run mean of variance.
+        sigma (float): Volatility of variance (vol of vol).
+        rho (float): Correlation between asset and variance processes.
         x0 (float): Initial asset price.
         v0 (float): Initial variance.
+        M (int): Number of paths to simulate.
         seed (Optional[int]): Seed for random number generation.
 
     Returns:
-        t (np.ndarray): Time grid, shape (N,).
-        X (np.ndarray): Simulated asset prices, shape (N,).
+        t (np.ndarray): Time grid of shape (N,).
+        X (np.ndarray): Simulated asset prices of shape (M, N).
+        V (np.ndarray): Simulated variances of shape (M, N).
     """
     rng = np.random.default_rng(seed)
     dt = T / (N - 1)
     t = np.linspace(0.0, T, N)
 
-    X = np.empty(N)
-    V = np.empty(N)
-    X[0] = x0
-    V[0] = v0
+    # Initialise output arrays
+    X = np.empty((M, N))
+    V = np.empty((M, N))
+    X[:, 0] = x0
+    V[:, 0] = v0
 
+    # Pre-compute sqrt(dt)
+    sqrt_dt = np.sqrt(dt)
+    # Loop over time steps
     for i in range(1, N):
-        dW1 = rng.standard_normal() * np.sqrt(dt)  # Asset process
-        dW2 = rho * dW1 + np.sqrt(1 - rho**2) * rng.standard_normal() * np.sqrt(dt)  # Volatility process
+        # Generate correlated Brownian increments
+        Z1 = rng.standard_normal(M)
+        Z2 = rng.standard_normal(M)
+        dW1 = Z1 * sqrt_dt
+        dW2 = (rho * Z1 + np.sqrt(1 - rho**2) * Z2) * sqrt_dt
 
-        # Update variance using Euler-Maruyama
-        V[i] = max(V[i-1] + kappa * (theta - V[i-1]) * dt + sigma * np.sqrt(V[i-1]) * dW2, 0)
+        # Previous variance and ensure non-negative
+        V_prev = np.maximum(V[:, i-1], 0.0)
 
-        # Update asset price using the Heston model formula
-        X[i] = X[i-1] * np.exp((mu - 0.5 * V[i-1]) * dt + np.sqrt(V[i-1]) * dW1)
+        # Update variance with Euler-Maruyama
+        V[:, i] = V_prev + kappa * (theta - V_prev) * dt + sigma * np.sqrt(V_prev) * dW2
+        V[:, i] = np.maximum(V[:, i], 0.0)
+
+        # Update asset price
+        X[:, i] = X[:, i-1] * np.exp((mu - 0.5 * V_prev) * dt + np.sqrt(V_prev) * dW1)
 
     return t, X, V
