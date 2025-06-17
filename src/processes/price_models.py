@@ -31,7 +31,7 @@ def ou_process(
     dt = T / (N - 1)
     t = np.linspace(0.0, T, N)
 
-    # Initialize process array
+    # Initialise process array
     X = np.empty(N)
     X[0] = x0
 
